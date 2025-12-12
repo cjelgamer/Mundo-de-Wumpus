@@ -1,0 +1,30 @@
+Starting reproduction...
+Initializing PrologClient...
+Simulating 'Nuevo Mapa'...
+Step 1
+Prolog Version Check: Error: Prolog no está corriendo.
+CRASH DETECTED (Error in response)!
+Finished successfully.
+Starting reproduction...
+Initializing PrologClient...
+Starting Prolog in /home/cristian/Documentos/7mo/Wumpus/prolog with ['swipl', '-q', '-l', 'server.pl', '-g', 'main_loop', '-t', 'halt']
+WARNING: Prolog did not send READY.
+Error iniciando Prolog: 'PrologClient' object has no attribute 'restart'
+Simulating 'Nuevo Mapa'...
+Exception ignored while finalizing file <_io.TextIOWrapper name=5 encoding='UTF-8'>:
+Traceback (most recent call last):
+  File "/home/cristian/Documentos/7mo/Wumpus/python/prolog_client.py", line 165, in stop
+    self.process = None
+BrokenPipeError: [Errno 32] Broken pipe
+Starting Prolog in /home/cristian/Documentos/7mo/Wumpus/prolog with ['swipl', '-q', '-l', 'server.pl', '-g', 'main_loop', '-t', 'halt']
+WARNING: Prolog did not send READY.
+Error iniciando Prolog: 'PrologClient' object has no attribute 'restart'
+Step 1
+Prolog Version Check: Error: Prolog no está corriendo.
+CRASH DETECTED (Error in response)!
+Exception ignored while finalizing file <_io.TextIOWrapper name=5 encoding='UTF-8'>:
+Traceback (most recent call last):
+  File "/home/cristian/Documentos/7mo/Wumpus/python/prolog_client.py", line 165, in stop
+    self.process = None
+BrokenPipeError: [Errno 32] Broken pipe
+Finished successfully.

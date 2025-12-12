@@ -105,11 +105,14 @@ class PrologClient:
         response_lines = []
         while True:
             try:
-                line = self.output_queue.get(timeout=2.0) # 2s timeout
+                line = self.output_queue.get(timeout=0.3)  # Reducido de 2.0s a 0.3s para más velocidad
                 if line == "__END__":
                     break
                 # Filtrar prompts y true/false
                 if line in ["true.", "false."]:
+                    continue
+                # Filtrar líneas que contienen __END__ o marcadores de debug
+                if "__END__" in line or line.startswith("P=") or line.startswith("ERROR:"):
                     continue
                 response_lines.append(line)
             except queue.Empty:
@@ -117,20 +120,104 @@ class PrologClient:
                 break
         
         return "\n".join(response_lines).strip()
+    
+    def simple_query(self, prolog_query):
+        """Query simplificada que limpia mejor la salida"""
+        result = self.query(prolog_query, wait_for_result=True)
+        # Limpiar cualquier residuo de marcadores
+        result = result.replace("__END__", "").replace("P=[].", "").strip()
+        return result
 
     def reiniciar_motor(self):
-        """Recarga el archivo del agente para borrar memoria"""
-        # Una forma ruda pero efectiva es reiniciar el proceso
+        """Reinicia COMPLETAMENTE el proceso de Prolog para limpiar caché"""
+        # Matar proceso viejo
         self.stop()
+        # Esperar un momento
+        import time
+        time.sleep(0.2)
+        # Iniciar proceso nuevo
         self.start_process()
+        return "Proceso Prolog reiniciado completamente"
+
+    def restart(self):
+        """Alias para reiniciar_motor - usado en manejo de errores"""
+        return self.reiniciar_motor()
 
     def stop(self):
         self.running = False
         if self.process:
             try:
                 self.process.terminate()
+                self.process.wait(timeout=1.0)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
             except:
                 pass
+            finally:
+                self.process = None
+
+    # ============================================================
+    # MÉTODOS PARA SISTEMA MEJORADO
+    # ============================================================
+
+    def obtener_percepciones(self):
+        """Obtiene lista de percepciones actuales del agente"""
+        result = self.query("obtener_percepciones(P), write(P)")
+        # El resultado será algo como: [brisa,hedor] o []
+        return result
+
+    def obtener_estado_agente(self):
+        """Obtiene el estado completo del agente"""
+        # Posición
+        pos = self.query("posicion_agente(X,Y), format('~w,~w', [X,Y])")
+        
+        # Dirección
+        dir_result = self.query("agente_dir(D), write(D)")
+        
+        # Oro
+        oro = self.query("agente_tiene_oro(G), write(G)")
+        
+        # Flecha
+        flecha = self.query("agente_tiene_flecha(F), write(F)")
+        
+        # Vivo
+        vivo = self.query("agente_vivo(V), write(V)")
+        
+        return {
+            'posicion': pos,
+            'direccion': dir_result,
+            'tiene_oro': oro,
+            'tiene_flecha': flecha,
+            'vivo': vivo
+        }
+
+    def ejecutar_accion_basica(self, accion):
+        """
+        Ejecuta una acción básica del agente
+        Acciones: 'mover', 'girar_izquierda', 'girar_derecha', 'agarrar', 'disparar'
+        """
+        if accion == 'mover':
+            return self.query("mover")
+        elif accion == 'girar_izquierda':
+            return self.query("girar_izquierda")
+        elif accion == 'girar_derecha':
+            return self.query("girar_derecha")
+        elif accion == 'agarrar':
+            return self.query("agarrar")
+        elif accion == 'disparar':
+            return self.query("disparar")
+        else:
+            return f"Acción desconocida: {accion}"
+
+    def actualizar_kb(self):
+        """Actualiza la base de conocimiento desde las percepciones actuales"""
+        return self.query("actualizar_kb_desde_percepciones")
+
+    def elegir_siguiente_celda(self):
+        """Usa el sistema de decisión avanzado para elegir siguiente movimiento"""
+        result = self.query("elegir_siguiente_celda(C), write(C)")
+        return result
 
     def __del__(self):
         self.stop()
+

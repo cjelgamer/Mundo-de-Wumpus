@@ -28,6 +28,7 @@ class WumpusGUI:
         self.CELL_SIZE = 80
         self.mapa = None
         self.agente_pos = [1, 1]
+        self.agente_dir = 'este'  # Dirección del agente
         self.visitadas = set()
         self.prolog = PrologClient()
         self.auto_playing = False
@@ -191,7 +192,7 @@ class WumpusGUI:
                 if percepciones_txt:
                     self.canvas.create_text(x0+5, y0+5, text=percepciones_txt, anchor=tk.NW, font=("Arial", int(sz*0.25), "bold"), fill="purple")
 
-        # Dibujar Agente
+        # Dibujar Agente con dirección
         ax, ay = self.agente_pos
         ax0 = offset_x + (ax - 1) * sz
         ay0 = offset_y + (n - ay) * sz
@@ -199,90 +200,140 @@ class WumpusGUI:
         self.canvas.create_oval(ax0+sz*0.2, ay0+sz*0.2, ax0+sz*0.8, ay0+sz*0.8, fill="#3498db", outline="white", width=2)
         self.canvas.create_text(ax0+sz*0.5, ay0+sz*0.5, text="A", fill="white", font=("Arial", int(sz*0.3), "bold"))
         
+        # Flecha indicando dirección
+        dir_arrows = {'norte': '↑', 'sur': '↓', 'este': '→', 'oeste': '←'}
+        arrow = dir_arrows.get(self.agente_dir, '→')
+        self.canvas.create_text(ax0+sz*0.5, ay0+sz*0.15, text=arrow, fill="#e74c3c", font=("Arial", int(sz*0.25), "bold"))
+        
         self.root.update_idletasks()
 
     def obtener_percepciones(self):
+        """Calcula percepciones desde Python (más confiable que parsear Prolog)"""
         percepciones = []
         x, y = self.agente_pos
         
-        # Hedor
+        # Hedor si Wumpus está adyacente
         wx, wy = self.mapa['wumpus']
-        if abs(x-wx) + abs(y-wy) == 1: percepciones.append("hedor")
-        # Brisa
+        if abs(x-wx) + abs(y-wy) == 1: 
+            percepciones.append("hedor")
+        
+        # Brisa si hay pozo adyacente
         for px, py in self.mapa['pozos']:
             if abs(x-px) + abs(y-py) == 1: 
                 percepciones.append("brisa")
                 break
-        # Brillo
-        ox, oy = self.mapa['oro']
-        if x == ox and y == oy: percepciones.append("brillo")
-            
+        
+        # Brillo si oro está en posición actual (y aún no ha sido recogido)
+        if self.mapa['oro'] is not None:
+            ox, oy = self.mapa['oro']
+            if x == ox and y == oy: 
+                percepciones.append("brillo")
+        
         return percepciones
+    
+    def actualizar_estado_visual(self):
+        """Actualiza el panel de estado con información del agente"""
+        try:
+            estado = self.prolog.obtener_estado_agente()
+            pos = estado.get('posicion', 'N/A')
+            dir_val = estado.get('direccion', 'N/A')
+            oro = '✓' if estado.get('tiene_oro') == '1' else '✗'
+            flecha = '✓' if estado.get('tiene_flecha') == '1' else '✗'
+            vivo = '✓' if estado.get('vivo') == '1' else '✗'
+            
+            self.agente_dir = dir_val  # Actualizar dirección para visualización
+            
+            status_text = f"Pos: ({pos})\nDir: {dir_val}\nOro: {oro} | Flecha: {flecha}\nVivo: {vivo}"
+            self.status(status_text)
+        except:
+            # Fallback simple
+            self.status(f"Pos: ({self.agente_pos[0]},{self.agente_pos[1]})\nDir: {self.agente_dir}")
 
     def siguiente_paso(self):
         percepciones = self.obtener_percepciones()
-        self.status(f"Percibiendo: {percepciones}")
+        self.log(f"Percepciones: {percepciones}")
         
         # Formatear lista para Prolog: ['brisa', 'hedor'] -> [brisa,hedor]
-        args_str = "[" + ",".join(percepciones) + "]"
-        query = f"decidir_accion({args_str}, Accion), write(Accion)"
+        if percepciones:
+            args_str = "[" + ",".join(percepciones) + "]"
+        else:
+            args_str = "[]"
         
-        self.log(f"Consultando: {query}")
-        resultado = self.prolog.query(query)
-        self.log(f"Respuesta: {resultado}")
+        # Llamar a decidir_accion en Prolog
+        try:
+            query = f"decidir_accion({args_str}, Accion), write(Accion)"
+            resultado = self.prolog.query(query)
+            self.log(f"Decisión: {resultado}")
+        except Exception as e:
+            self.log(f"Error en Prolog: {e}")
+            resultado = "accion(girar)"  # Fallback
         
         import re
         # Buscar accion(Tipo...)
-        # Regex captura: accion(ir, 2, 3) o accion(girar) o accion(coger)
-        if "ir" in resultado:
+        if "agarrar" in resultado:
+            self.log("¡ORO RECOGIDO!")
+            self.mapa['oro'] = None
+            if self.agente_pos == [1, 1]:
+                self.status("¡VICTORIA! Oro encontrado y escapado.")
+                messagebox.showinfo("¡Ganaste!", "El agente encontró el oro y escapó.")
+                self.auto_playing = False
+                self.btn_auto.config(text="▶ Juego Automático")
+        
+        elif "ir" in resultado:
             m = re.search(r"ir,(\d+),(\d+)", resultado)
             if m:
                 nx, ny = int(m.group(1)), int(m.group(2))
                 self.mover_agente(nx, ny)
             else:
-                 # Fallback por si el formato varia (ej. espacios)
-                 m = re.search(r"ir,\s*(\d+),\s*(\d+)", resultado)
-                 if m:
+                m = re.search(r"ir,\s*(\d+),\s*(\d+)", resultado)
+                if m:
                     nx, ny = int(m.group(1)), int(m.group(2))
                     self.mover_agente(nx, ny)
-
-        elif "coger" in resultado:
-            self.status("¡VICTORIA! Oro encontrado.")
-            self.log("WIN: Agente cogio el oro.")
-            messagebox.showinfo("¡Ganaste!", "El agente ha encontrado el Oro.")
-            self.auto_playing = False
-            self.btn_auto.config(text="▶ Juego Automático")
+                else:
+                    self.log("No se pudo parsear movimiento")
             
-        elif "girar" in resultado: # O cualquier otra cosa fallback
-            self.status("Agente girando/pensando...")
-            # Un pequeño delay visual si gira
+        elif "girar" in resultado:
+            self.log("Agente girando...")
         
         elif "salir" in resultado:
             self.status("Agente salió de la cueva.")
             self.auto_playing = False
+        else:
+            self.log(f"Acción desconocida: {resultado}")
             
         self.dibujar_mapa()
 
     def mover_agente(self, nx, ny):
-        self.agente_pos = [nx, ny]
-        self.visitadas.add(tuple(self.agente_pos))
-        
-        # Sincronizar con Prolog !! IMPORTANTE !!
-        # Si no le decimos a Prolog que nos movimos, piensa que sigue en (1,1)
-        self.prolog.query(f"actualizar_posicion({nx}, {ny})")
-        self.log(f"Agente movido a ({nx}, {ny})")
+        # Usar el sistema de movimiento de Prolog
+        try:
+            # El agente se moverá usando mover_a_celda_adyacente en Prolog
+            result = self.prolog.query(f"mover_a_celda_adyacente(({nx},{ny}))")
+            
+            # Actualizar posición local
+            self.agente_pos = [nx, ny]
+            self.visitadas.add(tuple(self.agente_pos))
+            self.log(f"Movido a ({nx}, {ny})")
+            
+        except:
+            # Fallback: actualización manual
+            self.agente_pos = [nx, ny]
+            self.visitadas.add(tuple(self.agente_pos))
+            self.prolog.query(f"actualizar_posicion({nx}, {ny})")
+            self.log(f"Movido a ({nx}, {ny})")
         
         self.dibujar_mapa()
         
         # Verificar muerte
         if self.agente_pos == self.mapa['wumpus']:
-            self.log("MUERTE: Wumpus te comió.")
+            self.log("💀 MUERTE: Wumpus te comió.")
             messagebox.showerror("Game Over", "El Wumpus te ha comido.")
             self.auto_playing = False
+            self.btn_auto.config(text="▶ Juego Automático")
         elif self.agente_pos in self.mapa['pozos']:
-            self.log("MUERTE: Caíste en pozo.")
+            self.log("💀 MUERTE: Caíste en pozo.")
             messagebox.showerror("Game Over", "Caíste en un pozo sin fondo.")
             self.auto_playing = False
+            self.btn_auto.config(text="▶ Juego Automático")
 
     def toggle_auto(self):
         if self.auto_playing:
