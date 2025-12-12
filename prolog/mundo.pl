@@ -30,6 +30,8 @@
 :- dynamic peligro/2.
 :- dynamic posible_pozo/2.
 :- dynamic posible_wumpus/2.
+:- dynamic ubicacion_wumpus_confirmada/2.
+:- dynamic celda_con_hedor/2.
 
 % ----------------------------------------------
 % Configuración del Mundo (Generado por Python)
@@ -129,6 +131,8 @@ reiniciar_agente :-
     retractall(peligro(_, _)),
     retractall(posible_pozo(_, _)),
     retractall(posible_wumpus(_, _)),
+    retractall(ubicacion_wumpus_confirmada(_, _)),
+    retractall(celda_con_hedor(_, _)),
     
     assertz(posicion_agente(1, 1)),
     assertz(agente_dir(este)),

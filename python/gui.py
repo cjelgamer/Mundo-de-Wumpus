@@ -168,8 +168,12 @@ class WumpusGUI:
                 cx, cy = x0 + sz/2, y0 + sz/2
                 
                 if [x, y] == self.mapa['wumpus']:
-                    # Reemplazo de Emoji por Texto seguro
-                    self.canvas.create_text(cx, cy, text="W", font=("Arial", int(sz*0.5), "bold"), fill="#c0392b")
+                    if self.mapa.get('wumpus_vivo', True):
+                         # Wumpus vivo
+                         self.canvas.create_text(cx, cy, text="W", font=("Arial", int(sz*0.5), "bold"), fill="#c0392b")
+                    else:
+                         # Wumpus muerto
+                         self.canvas.create_text(cx, cy, text="💀", font=("Arial", int(sz*0.5), "bold"), fill="gray")
                 
                 if [x, y] == self.mapa['oro']:
                     self.canvas.create_text(cx, cy+sz*0.2, text="$", font=("Arial", int(sz*0.4), "bold"), fill="#f1c40f")
@@ -279,6 +283,36 @@ class WumpusGUI:
                 self.auto_playing = False
                 self.btn_auto.config(text="▶ Juego Automático")
         
+        elif "disparar" in resultado:
+            m = re.search(r"disparar,\s*(\d+),\s*(\d+)", resultado)
+            if m:
+                wx, wy = int(m.group(1)), int(m.group(2))
+                self.log(f"🔫 ¡AGENTE DISPARA A (%d, %d)!" % (wx, wy))
+                
+                # Ejecutar disparo en Prolog y capturar salida
+                res_disparo = self.prolog.query(f"disparar({wx}, {wy})")
+                if res_disparo:
+                    self.log(f"{res_disparo}")
+
+                # Verificar via texto o estado
+                if "WUMPUS ELIMINADO" in res_disparo:
+                    self.log("💀 ¡WUMPUS ELIMINADO! Zona segura.")
+                    self.status("Wumpus Eliminado")
+                    self.mapa['wumpus_vivo'] = False
+                elif "FALLO" in res_disparo:
+                     self.log("❌ Disparo fallido (Ver detalles arriba).")
+                else:
+                    # Fallback verification
+                    wumpus_vivo = self.prolog.query("wumpus_vivo(V), write(V)")
+                    if wumpus_vivo == "0":
+                         self.log("💀 ¡WUMPUS ELIMINADO! Zona segura.")
+                         self.status("Wumpus Eliminado")
+                         self.mapa['wumpus_vivo'] = False
+                    else:
+                         self.log("❌ Fallo el disparo (Wumpus sigue vivo).")
+            else:
+                 self.log("Intentando disparar, pero error parseando coords.")
+
         elif "ir" in resultado:
             m = re.search(r"ir,(\d+),(\d+)", resultado)
             if m:
