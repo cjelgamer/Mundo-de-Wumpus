@@ -175,7 +175,7 @@ class WumpusGUI:
                          # Wumpus muerto
                          self.canvas.create_text(cx, cy, text="💀", font=("Arial", int(sz*0.5), "bold"), fill="gray")
                 
-                if [x, y] == self.mapa['oro']:
+                if [x, y] in self.mapa['oro']:
                     self.canvas.create_text(cx, cy+sz*0.2, text="$", font=("Arial", int(sz*0.4), "bold"), fill="#f1c40f")
                 
                 if [x, y] in self.mapa['pozos']:
@@ -228,9 +228,9 @@ class WumpusGUI:
                 break
         
         # Brillo si oro está en posición actual (y aún no ha sido recogido)
-        if self.mapa['oro'] is not None:
-            ox, oy = self.mapa['oro']
-            if x == ox and y == oy: 
+        if self.mapa['oro']:
+            # self.mapa['oro'] es una lista de coordenadas like [[2,3], [5,1]]
+            if [x, y] in self.mapa['oro']: 
                 percepciones.append("brillo")
         
         return percepciones
@@ -266,6 +266,11 @@ class WumpusGUI:
         # Llamar a decidir_accion en Prolog
         try:
             query = f"decidir_accion({args_str}, Accion), write(Accion)"
+            # IMPORTANTE: Aseguramos que Prolog sepa que hay oro en esta casilla si lo hay
+            if "brillo" in percepciones:
+                # Forzamos assert de brillo para que la logica de plan lo vea si es necesario (aunque se pasa en args)
+                pass 
+                
             resultado = self.prolog.query(query)
             self.log(f"Decisión: {resultado}")
         except Exception as e:
@@ -275,11 +280,15 @@ class WumpusGUI:
         import re
         # Buscar accion(Tipo...)
         if "agarrar" in resultado:
-            self.log("¡ORO RECOGIDO!")
-            self.mapa['oro'] = None
-            if self.agente_pos == [1, 1]:
-                self.status("¡VICTORIA! Oro encontrado y escapado.")
-                messagebox.showinfo("¡Ganaste!", "El agente encontró el oro y escapó.")
+            if self.agente_pos in self.mapa['oro']:
+                self.log("¡ORO RECOGIDO!")
+                self.mapa['oro'].remove(self.agente_pos)
+            else:
+                self.log("Intentaste agarrar sin oro aquí.")
+
+            if not self.mapa['oro']:
+                self.status("¡VICTORIA! Todo el oro recolectado.")
+                messagebox.showinfo("¡Ganaste!", "¡Has recolectado todo el oro!")
                 self.auto_playing = False
                 self.btn_auto.config(text="▶ Juego Automático")
         

@@ -21,31 +21,46 @@ def generar_mapa(tamano=6):
             mapa["wumpus"] = w
             break
             
-    # 2. Colocar Oro (evitando seguras y wumpus)
-    while True:
+    # 2. Colocar 2 Oros (evitando seguras, wumpus y entre ellos)
+    mapa["oro"] = []
+    while len(mapa["oro"]) < 2:
         o = [random.randint(1, tamano), random.randint(1, tamano)]
-        if o not in seguras and o != mapa["wumpus"]:
-            mapa["oro"] = o
-            break
+        if o not in seguras and o != mapa["wumpus"] and o not in mapa["oro"]:
+            mapa["oro"].append(o)
 
-    # 3. Generar pozos - MÁS POZOS para mundo clásico
-    # Lista prohibida: Solo seguras + Wumpus + Oro
-    prohibidas = seguras + [mapa["wumpus"], mapa["oro"]]
+    # 3. Generar pozos - EQUILIBRADO (15-25% del total de celdas)
+    # Lista prohibida: Solo seguras + Wumpus + Oros
+    prohibidas = seguras + [mapa["wumpus"]] + mapa["oro"]
     
     # Añadir adyacentes a wumpus (para que hedor y brisa no se mezclen)
     wx, wy = mapa["wumpus"]
     ady_wumpus = [[wx+1, wy], [wx-1, wy], [wx, wy+1], [wx, wy-1]]
     prohibidas += ady_wumpus
-
+    
+    # Calcular celdas disponibles
+    celdas_disponibles = []
     for x in range(1, tamano + 1):
         for y in range(1, tamano + 1):
             pos = [x, y]
-            if pos in prohibidas:
-                continue
-            
-            # AUMENTADO: 20% de probabilidad de pozo (mundo clásico)
-            if random.random() < 0.20:
-                mapa["pozos"].append(pos)
+            if pos not in prohibidas:
+                celdas_disponibles.append(pos)
+                
+    # Calcular cantidad de pozos
+    total_celdas = tamano * tamano
+    min_pozos = int(total_celdas * 0.15)
+    max_pozos = 6 # Límite estricto solicitado por usuario
+    
+    # Asegurar rangos lógicos
+    if min_pozos > max_pozos: min_pozos = max_pozos
+    if min_pozos < 1: min_pozos = 1
+    
+    cant_pozos = random.randint(min_pozos, max_pozos)
+    
+    # Seleccionar posiciones aleatorias
+    if len(celdas_disponibles) >= cant_pozos:
+        mapa["pozos"] = random.sample(celdas_disponibles, cant_pozos)
+    else:
+        mapa["pozos"] = celdas_disponibles # Usar todas las disponibles si son pocas
 
     return mapa
 
@@ -115,7 +130,9 @@ def guardar_prolog(mapa):
     lineas.append("% " + "-"*46)
     lineas.append(f"tamano({mapa['tamano']}).")
     lineas.append(f"wumpus({mapa['wumpus'][0]}, {mapa['wumpus'][1]}).")
-    lineas.append(f"oro({mapa['oro'][0]}, {mapa['oro'][1]}).")
+    
+    for o in mapa['oro']:
+        lineas.append(f"oro({o[0]}, {o[1]}).")
     
     for p in mapa['pozos']:
         lineas.append(f"pozo({p[0]}, {p[1]}).")
