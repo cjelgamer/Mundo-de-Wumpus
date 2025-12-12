@@ -105,6 +105,8 @@ def guardar_prolog(mapa):
     lineas.append(":- dynamic peligro/2.")
     lineas.append(":- dynamic posible_pozo/2.")
     lineas.append(":- dynamic posible_wumpus/2.")
+    lineas.append(":- dynamic ubicacion_wumpus_confirmada/2.")
+    lineas.append(":- dynamic celda_con_hedor/2.")
     lineas.append("")
     
     # Configuración del Mundo
@@ -216,6 +218,8 @@ def guardar_prolog(mapa):
     lineas.append("    retractall(peligro(_, _)),")
     lineas.append("    retractall(posible_pozo(_, _)),")
     lineas.append("    retractall(posible_wumpus(_, _)),")
+    lineas.append("    retractall(ubicacion_wumpus_confirmada(_, _)),")
+    lineas.append("    retractall(celda_con_hedor(_, _)),")
     lineas.append("    ")
     lineas.append("    assertz(posicion_agente(1, 1)),")
     lineas.append("    assertz(agente_dir(este)),")
@@ -227,13 +231,17 @@ def guardar_prolog(mapa):
     lineas.append("    assertz(seguro(1, 1)).")
     
     # Guardar en la carpeta prolog
+    # Guardar en la carpeta prolog usando rutas absolutas
     import os
-    ruta_prolog = "prolog/mundo.pl"
-    if os.path.exists("../prolog"):
-        ruta_prolog = "../prolog/mundo.pl"
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # Sube un nivel desde python/
+    ruta_prolog = os.path.join(base_dir, "prolog", "mundo.pl")
     
-    with open(ruta_prolog, "w") as f:
-        f.write("\n".join(lineas))
+    try:
+        with open(ruta_prolog, "w") as f:
+            f.write("\n".join(lineas))
+        print(f"✓ Guardado exitosamente en: {ruta_prolog}")
+    except Exception as e:
+        print(f"❌ Error guardando mundo.pl: {e}")
 
 if __name__ == "__main__":
     mapa = generar_mapa()

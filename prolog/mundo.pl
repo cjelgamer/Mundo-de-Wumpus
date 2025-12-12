@@ -37,13 +37,12 @@
 % Configuración del Mundo (Generado por Python)
 % ----------------------------------------------
 tamano(6).
-wumpus(6, 6).
-oro(5, 3).
-pozo(1, 5).
-pozo(2, 4).
+wumpus(6, 4).
+oro(4, 1).
 pozo(2, 6).
-pozo(3, 1).
-pozo(3, 3).
+pozo(3, 4).
+pozo(4, 2).
+pozo(5, 5).
 pozo(6, 1).
 
 % ----------------------------------------------

@@ -185,7 +185,7 @@ class WumpusGUI:
                 percepciones_txt = ""
                 # Hedor
                 wx, wy = self.mapa['wumpus']
-                if abs(x-wx) + abs(y-wy) == 1:
+                if self.mapa.get('wumpus_vivo', True) and (abs(x-wx) + abs(y-wy) == 1):
                     percepciones_txt += "~" # Hedor
                 # Brisa
                 for px, py in self.mapa['pozos']:
@@ -216,10 +216,10 @@ class WumpusGUI:
         percepciones = []
         x, y = self.agente_pos
         
-        # Hedor si Wumpus está adyacente
+        # Hedor si Wumpus está adyacente y VIVO
         wx, wy = self.mapa['wumpus']
-        if abs(x-wx) + abs(y-wy) == 1: 
-            percepciones.append("hedor")
+        if self.mapa.get('wumpus_vivo', True) and (abs(x-wx) + abs(y-wy) == 1):
+             percepciones.append("hedor")
         
         # Brisa si hay pozo adyacente
         for px, py in self.mapa['pozos']:
@@ -374,7 +374,7 @@ class WumpusGUI:
         self.dibujar_mapa()
         
         # Verificar muerte
-        if self.agente_pos == self.mapa['wumpus']:
+        if self.agente_pos == self.mapa['wumpus'] and self.mapa.get('wumpus_vivo', True):
             self.log("💀 MUERTE: Wumpus te comió.")
             messagebox.showerror("Game Over", "El Wumpus te ha comido.")
             self.auto_playing = False
