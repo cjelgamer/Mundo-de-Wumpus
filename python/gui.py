@@ -296,8 +296,24 @@ class WumpusGUI:
             self.log("Agente girando...")
         
         elif "salir" in resultado:
-            self.status("Agente salió de la cueva.")
+            # Verificar si el agente tiene oro
+            try:
+                estado = self.prolog.obtener_estado_agente()
+                tiene_oro = estado.get('tiene_oro') == '1'
+                
+                if tiene_oro and self.agente_pos == [1, 1]:
+                    self.log("¡VICTORIA! Agente escapó con el oro.")
+                    self.status("¡MISIÓN CUMPLIDA!")
+                    messagebox.showinfo("¡Victoria!", "El agente encontró el oro y escapó exitosamente.")
+                else:
+                    self.log("Agente salió de la cueva.")
+                    self.status("Agente salió.")
+            except:
+                self.log("Agente salió de la cueva.")
+                self.status("Agente salió.")
+            
             self.auto_playing = False
+            self.btn_auto.config(text="▶ Juego Automático")
         else:
             self.log(f"Acción desconocida: {resultado}")
             

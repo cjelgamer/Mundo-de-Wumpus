@@ -144,21 +144,52 @@ celdas_visitadas_adyacentes(Lista) :-
 decidir_accion(Percepciones, accion(agarrar)) :-
     member(brillo, Percepciones), !.
 
-% PRIORIDAD 2: Ir a celda SEGURA no visitada
+% PRIORIDAD 2: Si tengo oro y estoy en (1,1), SALIR
+decidir_accion(_Percepciones, accion(salir)) :-
+    posicion_agente(1, 1),
+    agente_tiene_oro(1), !.
+
+% PRIORIDAD 3: Si tengo oro, regresar a (1,1)
+decidir_accion(_Percepciones, accion(ir, NX, NY)) :-
+    agente_tiene_oro(1),
+    posicion_agente(X, Y),
+    (X, Y) \= (1, 1),
+    % Buscar celda adyacente que me acerque a (1,1)
+    adyacente(X, Y, NX, NY),
+    visitado(NX, NY),
+    % Preferir movimientos que reduzcan distancia a (1,1)
+    DistActual is abs(X - 1) + abs(Y - 1),
+    DistNueva is abs(NX - 1) + abs(NY - 1),
+    DistNueva =< DistActual, !.
+
+% PRIORIDAD 4: Ir a celda SEGURA no visitada
 decidir_accion(_Percepciones, accion(ir, NX, NY)) :-
     actualizar_kb_desde_percepciones,
     celdas_seguras_no_visitadas(Seguras),
     Seguras \= [],
     Seguras = [(NX, NY)|_], !.
 
-% PRIORIDAD 3: Retroceder a celda visitada segura
+% PRIORIDAD 5: TOMAR RIESGO CALCULADO - Ir a celda con menor peligro
+decidir_accion(_Percepciones, accion(ir, NX, NY)) :-
+    posicion_agente(X, Y),
+    % Encontrar celdas adyacentes no visitadas (incluyendo peligrosas)
+    findall(Riesgo-(CX,CY),
+            (adyacente(X, Y, CX, CY),
+             \+ visitado(CX, CY),
+             calcular_riesgo(CX, CY, Riesgo)),
+            Riesgos),
+    Riesgos \= [],
+    % Ordenar por riesgo (menor primero)
+    keysort(Riesgos, [_MinRiesgo-(NX,NY)|_]), !.
+
+% PRIORIDAD 6: Retroceder a celda visitada segura
 decidir_accion(_Percepciones, accion(ir, NX, NY)) :-
     celdas_visitadas_adyacentes(Visitadas),
     Visitadas \= [],
     member((NX, NY), Visitadas),
     es_segura(NX, NY), !.
 
-% PRIORIDAD 4: Retroceder a cualquier celda visitada
+% PRIORIDAD 7: Retroceder a cualquier celda visitada
 decidir_accion(_Percepciones, accion(ir, NX, NY)) :-
     celdas_visitadas_adyacentes(Visitadas),
     Visitadas \= [],
@@ -166,6 +197,16 @@ decidir_accion(_Percepciones, accion(ir, NX, NY)) :-
 
 % FALLBACK: Girar (no hay movimientos)
 decidir_accion(_, accion(girar)).
+
+% ============================================================
+% CÁLCULO DE RIESGO
+% ============================================================
+
+% Calcular nivel de riesgo de una celda
+calcular_riesgo(X, Y, Riesgo) :-
+    ( posible_pozo(X, Y) -> P = 1 ; P = 0 ),
+    ( posible_wumpus(X, Y) -> W = 1 ; W = 0 ),
+    Riesgo is P + W.
 
 % ============================================================
 % ACCIONES BÁSICAS
