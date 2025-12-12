@@ -119,7 +119,7 @@ candidato_adyacente((AX,AY)) :-
     posicion_agente(X,Y),
     adyacente(X,Y,AX,AY).
 
-% Encontrar celdas seguras no visitadas
+% Encontrar celdas seguras no visitadas ADYACENTES
 celdas_seguras_no_visitadas(Lista) :-
     findall((AX,AY), 
             (candidato_adyacente((AX,AY)), 
@@ -127,6 +127,12 @@ celdas_seguras_no_visitadas(Lista) :-
              \+ visitado(AX,AY)),
             L0),
     sort(L0, Lista).
+
+% Encontrar celdas seguras no visitadas en TODO EL MAPA (global)
+existen_celdas_seguras_globales :-
+    seguro(X, Y),
+    \+ visitado(X, Y),
+    es_segura(X, Y), !.
 
 % Encontrar celdas visitadas adyacentes (para retroceder)
 celdas_visitadas_adyacentes(Lista) :-
@@ -169,8 +175,38 @@ decidir_accion(_Percepciones, accion(ir, NX, NY)) :-
     Seguras \= [],
     Seguras = [(NX, NY)|_], !.
 
-% PRIORIDAD 5: TOMAR RIESGO CALCULADO - Ir a celda con menor peligro
+% PRIORIDAD 5: Retroceder a celda visitada segura para navegar hacia celdas seguras globales
 decidir_accion(_Percepciones, accion(ir, NX, NY)) :-
+    actualizar_kb_desde_percepciones,
+    existen_celdas_seguras_globales,
+    celdas_visitadas_adyacentes(Visitadas),
+    Visitadas \= [],
+    % Encontrar una celda segura global como objetivo
+    seguro(GX, GY),
+    \+ visitado(GX, GY),
+    es_segura(GX, GY),
+    % Elegir celda visitada adyacente que nos acerque al objetivo
+    member((NX, NY), Visitadas),
+    es_segura(NX, NY),
+    posicion_agente(X, Y),
+    % Calcular distancias (permitir movimientos que mantienen distancia)
+    DistActual is abs(X - GX) + abs(Y - GY),
+    DistNueva is abs(NX - GX) + abs(NY - GY),
+    DistNueva =< DistActual, !.
+
+% PRIORIDAD 5.5: Si hay celdas seguras globales pero no puedo acercarme, retroceder a cualquier visitada segura
+decidir_accion(_Percepciones, accion(ir, NX, NY)) :-
+    existen_celdas_seguras_globales,
+    celdas_visitadas_adyacentes(Visitadas),
+    Visitadas \= [],
+    member((NX, NY), Visitadas),
+    es_segura(NX, NY), !.
+
+% PRIORIDAD 6: TOMAR RIESGO CALCULADO - Solo si NO hay celdas seguras en TODO el mapa
+decidir_accion(_Percepciones, accion(ir, NX, NY)) :-
+    actualizar_kb_desde_percepciones,
+    % IMPORTANTE: Solo arriesgar si no hay MÁS celdas seguras EN TODO EL MAPA
+    \+ existen_celdas_seguras_globales,
     posicion_agente(X, Y),
     % Encontrar celdas adyacentes no visitadas (incluyendo peligrosas)
     findall(Riesgo-(CX,CY),
@@ -182,15 +218,16 @@ decidir_accion(_Percepciones, accion(ir, NX, NY)) :-
     % Ordenar por riesgo (menor primero)
     keysort(Riesgos, [_MinRiesgo-(NX,NY)|_]), !.
 
-% PRIORIDAD 6: Retroceder a celda visitada segura
+% PRIORIDAD 7: Retroceder a cualquier celda visitada cuando hay celdas seguras globales (navegación desesperada)
 decidir_accion(_Percepciones, accion(ir, NX, NY)) :-
+    existen_celdas_seguras_globales,
     celdas_visitadas_adyacentes(Visitadas),
     Visitadas \= [],
-    member((NX, NY), Visitadas),
-    es_segura(NX, NY), !.
+    Visitadas = [(NX, NY)|_], !.
 
-% PRIORIDAD 7: Retroceder a cualquier celda visitada
+% PRIORIDAD 8: Retroceder a cualquier celda visitada (último recurso antes de girar)
 decidir_accion(_Percepciones, accion(ir, NX, NY)) :-
+    \+ existen_celdas_seguras_globales,
     celdas_visitadas_adyacentes(Visitadas),
     Visitadas \= [],
     Visitadas = [(NX, NY)|_], !.

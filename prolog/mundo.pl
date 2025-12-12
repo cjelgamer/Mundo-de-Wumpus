@@ -35,12 +35,14 @@
 % Configuración del Mundo (Generado por Python)
 % ----------------------------------------------
 tamano(6).
-wumpus(2, 4).
-oro(4, 2).
-pozo(2, 2).
+wumpus(6, 6).
+oro(5, 3).
+pozo(1, 5).
+pozo(2, 4).
+pozo(2, 6).
+pozo(3, 1).
 pozo(3, 3).
-pozo(4, 5).
-pozo(5, 1).
+pozo(6, 1).
 
 % ----------------------------------------------
 % Estado inicial del agente
